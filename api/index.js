@@ -1,14 +1,28 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+import express from 'express';
+import bodyParser from 'body-parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const express = require('express');
+dotenv.config();
+
 const app = express();
-const { sql } = require('@vercel/postgres');
 
-const bodyParser = require('body-parser');
-const path = require('path');
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Create application/x-www-form-urlencoded parser
 const urlencodedParser = bodyParser.urlencoded({ extended: false });
+
+
+
+// Dummy data to store users
+let users = [
+	{ id: "1", name: "John Doe", email: "john@example.com" },
+	{ id: "2", name: "Jane Smith", email: "jane@example.com" },
+	{ id: "3", name: "Bob Wilson", email: "bob@example.com" }
+];
 
 app.use(express.static('public'));
 
@@ -24,9 +38,14 @@ app.get('/uploadUser', function (req, res) {
 	res.sendFile(path.join(__dirname, '..', 'components', 'user_upload_form.htm'));
 });
 
-app.post('/uploadSuccessful', urlencodedParser, async (req, res) => {
+app.post('/uploadSuccessful', urlencodedParser, (req, res) => {
 	try {
-		await sql`INSERT INTO Users (Id, Name, Email) VALUES (${req.body.user_id}, ${req.body.name}, ${req.body.email});`;
+		const newUser = {
+			id: req.body.user_id,
+			name: req.body.name,
+			email: req.body.email
+		};
+		users.push(newUser);
 		res.status(200).send('<h1>User added successfully</h1>');
 	} catch (error) {
 		console.error(error);
@@ -34,11 +53,10 @@ app.post('/uploadSuccessful', urlencodedParser, async (req, res) => {
 	}
 });
 
-app.get('/allUsers', async (req, res) => {
+app.get('/allUsers', (req, res) => {
 	try {
-		const users = await sql`SELECT * FROM Users;`;
-		if (users && users.rows.length > 0) {
-			let tableContent = users.rows
+		if (users.length > 0) {
+			let tableContent = users
 				.map(
 					(user) =>
 						`<tr>
@@ -109,4 +127,4 @@ app.get('/allUsers', async (req, res) => {
 
 app.listen(3000, () => console.log('Server ready on port 3000.'));
 
-module.exports = app;
+export default app;
