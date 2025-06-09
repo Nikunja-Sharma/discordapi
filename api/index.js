@@ -1,8 +1,10 @@
 import dotenv from 'dotenv';
 import express from 'express';
+import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import authRoutes from '../routes/authRoutes.js';
 
 dotenv.config();
 
@@ -12,10 +14,17 @@ const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create application/x-www-form-urlencoded parser
-const urlencodedParser = bodyParser.urlencoded({ extended: false });
+// Middleware
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
+// MongoDB Connection
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_db')
+	.then(() => console.log('Connected to MongoDB'))
+	.catch((err) => console.error('MongoDB connection error:', err));
 
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Dummy data to store users
 let users = [
@@ -38,7 +47,7 @@ app.get('/uploadUser', function (req, res) {
 	res.sendFile(path.join(__dirname, '..', 'components', 'user_upload_form.htm'));
 });
 
-app.post('/uploadSuccessful', urlencodedParser, (req, res) => {
+app.post('/uploadSuccessful', bodyParser.urlencoded({ extended: false }), (req, res) => {
 	try {
 		const newUser = {
 			id: req.body.user_id,
@@ -125,6 +134,8 @@ app.get('/allUsers', (req, res) => {
 	}
 });
 
-app.listen(3000, () => console.log('Server ready on port 3000.'));
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 export default app;

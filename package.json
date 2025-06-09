@@ -1,19 +1,26 @@
 {
-	"name": "express",
+	"name": "express-auth-api",
 	"version": "1.0.0",
 	"description": "",
-	"main": "index.ts",
+	"main": "api/index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
-		"start": "node api/index.js"
+		"start": "node api/index.js",
+		"dev": "nodemon api/index.js"
 	},
 	"keywords": [],
 	"author": "",
 	"license": "ISC",
 	"type": "module",
 	"dependencies": {
-		"@vercel/postgres": "^0.7.2",
+		"bcryptjs": "^2.4.3",
 		"dotenv": "^16.4.1",
-		"express": "^4.18.2"
+		"express": "^4.18.2",
+		"jsonwebtoken": "^9.0.2",
+		"mongoose": "^8.1.1",
+		"body-parser": "^1.20.2"
+	},
+	"devDependencies": {
+		"nodemon": "^3.1.7"
 	}
 }
