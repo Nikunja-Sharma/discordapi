@@ -48,29 +48,78 @@ class DiscordBotService {
             this.commandHandler = new CommandHandler(this);
             console.log('Command handler created');
 
-            // Create a promise that resolves when bot is ready or rejects on timeout
-            const loginPromise = new Promise((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    reject(new Error('Discord bot login timeout after 30 seconds'));
-                }, 30000);
+            // Retry logic for Render network issues
+            const maxRetries = 3;
+            let lastError;
+            
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    console.log(`Attempting to login to Discord (attempt ${attempt}/${maxRetries})...`);
+                    
+                    // Create a promise that resolves when bot is ready or rejects on timeout
+                    const loginPromise = new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error(`Discord bot login timeout after 30 seconds (attempt ${attempt})`));
+                        }, 30000);
 
-                this.client.once('ready', () => {
-                    clearTimeout(timeout);
-                    resolve();
-                });
+                        const readyHandler = () => {
+                            clearTimeout(timeout);
+                            this.client.off('error', errorHandler);
+                            resolve();
+                        };
 
-                this.client.once('error', (error) => {
-                    clearTimeout(timeout);
-                    reject(error);
-                });
+                        const errorHandler = (error) => {
+                            clearTimeout(timeout);
+                            this.client.off('ready', readyHandler);
+                            reject(error);
+                        };
 
-                // Start the login process
-                this.client.login(process.env.DISCORD_BOT_TOKEN).catch(reject);
-            });
+                        this.client.once('ready', readyHandler);
+                        this.client.once('error', errorHandler);
 
-            console.log('Attempting to login to Discord...');
-            await loginPromise;
-            console.log('Discord login completed successfully');
+                        // Start the login process
+                        this.client.login(process.env.DISCORD_BOT_TOKEN).catch(reject);
+                    });
+
+                    await loginPromise;
+                    console.log('Discord login completed successfully');
+                    break; // Success, exit retry loop
+                    
+                } catch (error) {
+                    lastError = error;
+                    console.error(`Login attempt ${attempt} failed:`, error.message);
+                    
+                    if (attempt < maxRetries) {
+                        console.log(`Retrying in 5 seconds...`);
+                        
+                        // Clean up the client for retry
+                        if (this.client) {
+                            try {
+                                this.client.removeAllListeners();
+                                this.client.destroy();
+                            } catch (cleanupError) {
+                                console.error('Error cleaning up client:', cleanupError);
+                            }
+                        }
+                        
+                        // Wait before retry
+                        await new Promise(resolve => setTimeout(resolve, 5000));
+                        
+                        // Recreate client for next attempt
+                        this.client = new Client({
+                            intents: [
+                                GatewayIntentBits.Guilds,
+                                GatewayIntentBits.GuildMessages,
+                                GatewayIntentBits.MessageContent
+                            ]
+                        });
+                        this.setupEventHandlers();
+                    } else {
+                        // All retries failed
+                        throw new Error(`Discord bot failed to connect after ${maxRetries} attempts. Last error: ${lastError.message}`);
+                    }
+                }
+            }
 
             return true;
         } catch (error) {

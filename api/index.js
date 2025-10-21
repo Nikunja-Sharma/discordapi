@@ -69,14 +69,44 @@ async function initializeDiscordBot() {
 				const https = await import('https');
 				const testReq = https.request('https://discord.com/api/v10/gateway', { method: 'GET' }, (res) => {
 					console.log('Discord API connectivity test - Status:', res.statusCode);
+					res.on('data', (chunk) => {
+						try {
+							const data = JSON.parse(chunk.toString());
+							console.log('Discord Gateway URL:', data.url);
+						} catch (parseError) {
+							console.log('Gateway response received (could not parse)');
+						}
+					});
 				});
 				testReq.on('error', (err) => {
 					console.error('Discord API connectivity test failed:', err.message);
+					console.error('This indicates network connectivity issues with Discord API');
+				});
+				testReq.setTimeout(10000, () => {
+					console.error('Discord API connectivity test timed out');
+					testReq.destroy();
 				});
 				testReq.end();
 			} catch (netError) {
 				console.error('Network test error:', netError.message);
 			}
+		}
+		
+		// Check if this is a known Render networking issue
+		if (error.message.includes('timeout')) {
+			console.error('');
+			console.error('🔧 RENDER DEPLOYMENT ISSUE DETECTED:');
+			console.error('This appears to be a network connectivity issue with Render.');
+			console.error('');
+			console.error('Possible solutions:');
+			console.error('1. Render may be blocking Discord WebSocket connections');
+			console.error('2. Try redeploying the service');
+			console.error('3. Contact Render support about Discord API access');
+			console.error('4. Consider using a different hosting provider');
+			console.error('');
+			console.error('The web API will continue to work normally.');
+			console.error('Discord bot features will be unavailable until this is resolved.');
+			console.error('');
 		}
 		
 		// Don't exit the process - allow the web server to continue running
@@ -102,6 +132,22 @@ app.use(express.static('public'));
 
 app.get('/', function (req, res) {
 	res.sendFile(path.join(__dirname, '..', 'components', 'home.htm'));
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+	const health = {
+		status: 'ok',
+		timestamp: new Date().toISOString(),
+		services: {
+			web: 'online',
+			database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+			discord: discordBotService.isConnected() ? 'connected' : 'disconnected'
+		},
+		environment: process.env.NODE_ENV || 'development'
+	};
+	
+	res.json(health);
 });
 
 app.get('/about', function (req, res) {
