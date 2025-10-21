@@ -1,21 +1,32 @@
+version: '3.8'
+
 services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongodb:27017/auth_db
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: unless-stopped
+
   mongodb:
-    image: mongo:6.0
-    container_name: mongodb
+    image: mongo:7
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-
-  mongo-express:
-    image: mongo-express:1.0.0-alpha.4
-    container_name: mongo-express
-    ports:
-      - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_SERVER: mongodb
-    depends_on:
-      - mongodb
+      - MONGO_INITDB_DATABASE=auth_db
+    restart: unless-stopped
 
 volumes:
   mongodb_data:
