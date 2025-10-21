@@ -127,7 +127,7 @@ curl -X POST http://localhost:3000/api/discord/send \
       {
         "title": "🎮 Game Menu",
         "description": "Choose your action:",
-        "color": 0x00ff00,
+        "color": 65280,
         "fields": [
           {
             "name": "Players Online",
@@ -143,7 +143,7 @@ curl -X POST http://localhost:3000/api/discord/send \
         "footer": {
           "text": "Game Server v1.0"
         },
-        "timestamp": "2024-01-01T00:00:00.000Z"
+        "timestamp": true
       }
     ],
     "buttons": [

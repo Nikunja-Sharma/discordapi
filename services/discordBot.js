@@ -363,7 +363,7 @@ class DiscordBotService {
             default:
                 await interaction.reply({
                     content: `Button "${customId}" clicked! (No specific handler implemented)`,
-                    ephemeral: true
+                    // ephemeral: true
                 });
         }
     }

@@ -49,7 +49,7 @@ curl -X POST http://localhost:3000/api/discord/send \
       {
         "title": "📋 Basic Embed",
         "description": "This is a simple embed with title and description.",
-        "color": 0x3498db
+        "color": 3447003
       }
     ]
   }'
