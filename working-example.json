@@ -1,0 +1,33 @@
+{
+  "embeds": [
+    {
+      "title": "🎨 Working Color Example",
+      "description": "This embed uses correct decimal color values",
+      "color": 16766720,
+      "fields": [
+        {
+          "name": "✅ Success Color",
+          "value": "Green: 65280",
+          "inline": true
+        },
+        {
+          "name": "❌ Error Color", 
+          "value": "Red: 16711680",
+          "inline": true
+        },
+        {
+          "name": "ℹ️ Info Color",
+          "value": "Blue: 39423",
+          "inline": true
+        }
+      ]
+    }
+  ],
+  "buttons": [
+    {
+      "customId": "test_button",
+      "label": "Test Button",
+      "style": "primary"
+    }
+  ]
+}

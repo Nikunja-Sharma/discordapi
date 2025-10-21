@@ -1,0 +1,10 @@
+{
+  "content": "Minimal button test",
+  "buttons": [
+    {
+      "customId": "test",
+      "label": "Test",
+      "style": "primary"
+    }
+  ]
+}

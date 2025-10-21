@@ -47,11 +47,20 @@ Sends a message to the predefined default channel.
       "description": "Embed description",
       "color": 0x00ff00
     }
+  ],
+  "buttons": [
+    {
+      "customId": "my_button",
+      "label": "Click Me!",
+      "style": "primary"
+    }
   ]
 }
 ```
 
 **Note:** Channel is automatically set to the configured default channel. Users cannot specify custom channels.
+
+**Button Support:** Messages can include interactive buttons. See `examples/discord-buttons-examples.md` for comprehensive examples.
 
 #### Get Default Channel Info
 ```

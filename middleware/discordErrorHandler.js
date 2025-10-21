@@ -96,7 +96,7 @@ class RetryQueue {
         }
 
         // Retry on rate limit errors
-        if (error.code === 429 || error.message.includes('rate limit')) {
+        if (error.code === 429 || (error.message && error.message.includes('rate limit'))) {
             return true;
         }
 
@@ -265,10 +265,11 @@ export function logDiscordError(error, context = {}) {
         service: 'discord',
         error: {
             code: classified.code,
-            message: error.message,
-            stack: error.stack,
+            message: error.message || 'No error message provided',
+            stack: error.stack || 'No stack trace available',
             originalCode: error.code,
-            status: error.status
+            status: error.status,
+            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
         },
         context: {
             ...context,

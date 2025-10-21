@@ -1,0 +1,10 @@
+{
+  "content": "🧪 **Simple Test**: Testing basic message functionality",
+  "buttons": [
+    {
+      "customId": "test_button",
+      "label": "Click Me!",
+      "style": "primary"
+    }
+  ]
+}

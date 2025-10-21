@@ -47,7 +47,7 @@ const authenticateToken = (req, res, next) => {
  * Uses predefined default channel instead of user-specified channel
  */
 const validateMessageRequest = (req, res, next) => {
-    const { content, embeds } = req.body;
+    const { content, embeds, buttons } = req.body;
 
     // Validate request body exists
     if (!req.body || Object.keys(req.body).length === 0) {
@@ -86,6 +86,114 @@ const validateMessageRequest = (req, res, next) => {
                 timestamp: new Date().toISOString()
             }
         });
+    }
+
+    // Validate buttons if provided
+    if (buttons !== undefined) {
+        if (!Array.isArray(buttons)) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'INVALID_BUTTONS_TYPE',
+                    message: 'buttons must be an array',
+                    details: { provided: typeof buttons },
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+
+        if (buttons.length > 25) {
+            return res.status(400).json({
+                success: false,
+                error: {
+                    code: 'TOO_MANY_BUTTONS',
+                    message: 'Maximum of 25 buttons allowed per message (5 per row, 5 rows max)',
+                    details: { provided: buttons.length, maxButtons: 25 },
+                    timestamp: new Date().toISOString()
+                }
+            });
+        }
+
+        // Validate each button
+        for (let i = 0; i < buttons.length; i++) {
+            const button = buttons[i];
+            
+            if (typeof button !== 'object' || button === null) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'INVALID_BUTTON_TYPE',
+                        message: `Button at index ${i} must be an object`,
+                        details: { buttonIndex: i, provided: typeof button },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            // Validate button label
+            if (!button.label || typeof button.label !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'MISSING_BUTTON_LABEL',
+                        message: `Button at index ${i} must have a label (string)`,
+                        details: { buttonIndex: i },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            if (button.label.length > 80) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'BUTTON_LABEL_TOO_LONG',
+                        message: `Button label at index ${i} exceeds 80 character limit`,
+                        details: { buttonIndex: i, labelLength: button.label.length, maxLength: 80 },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            // Validate button style
+            if (button.style && !['primary', 'secondary', 'success', 'danger', 'link'].includes(button.style)) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'INVALID_BUTTON_STYLE',
+                        message: `Button style at index ${i} must be one of: primary, secondary, success, danger, link`,
+                        details: { buttonIndex: i, provided: button.style },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            // Validate URL for link buttons
+            if (button.style === 'link' && (!button.url || typeof button.url !== 'string')) {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'MISSING_BUTTON_URL',
+                        message: `Link button at index ${i} must have a url (string)`,
+                        details: { buttonIndex: i },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            // Validate customId for non-link buttons
+            if (button.style !== 'link' && button.customId && typeof button.customId !== 'string') {
+                return res.status(400).json({
+                    success: false,
+                    error: {
+                        code: 'INVALID_BUTTON_CUSTOM_ID',
+                        message: `Button customId at index ${i} must be a string`,
+                        details: { buttonIndex: i, provided: typeof button.customId },
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+        }
     }
 
     // Validate content if provided

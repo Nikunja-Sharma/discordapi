@@ -8,7 +8,7 @@ import { withRetry, logDiscordError } from '../middleware/discordErrorHandler.js
 export const sendMessage = async (req, res) => {
     try {
         // Extract validated data from middleware
-        const { channelId, content, embeds } = req.body;
+        const { channelId, content, embeds, buttons } = req.body;
 
         // Check if Discord bot is ready
         if (!discordBotService.isConnected()) {
@@ -24,7 +24,7 @@ export const sendMessage = async (req, res) => {
 
         // Send message through Discord bot service with retry logic
         const result = await withRetry(() => 
-            discordBotService.sendMessage(channelId, content, embeds)
+            discordBotService.sendMessage(channelId, content, embeds, buttons)
         );
 
         // Return success response

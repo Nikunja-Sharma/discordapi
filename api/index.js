@@ -22,9 +22,21 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_db')
-	.then(() => console.log('Connected to MongoDB'))
-	.catch((err) => console.error('MongoDB connection error:', err));
+const connectToMongoDB = async () => {
+	try {
+		if (!process.env.MONGODB_URI) {
+			throw new Error('MONGODB_URI environment variable is not defined');
+		}
+		
+		await mongoose.connect(process.env.MONGODB_URI);
+		console.log('Connected to MongoDB');
+	} catch (err) {
+		console.error('MongoDB connection error:', err.message);
+		console.log('Server will continue without database functionality');
+	}
+};
+
+connectToMongoDB();
 
 // Initialize Discord Bot
 async function initializeDiscordBot() {

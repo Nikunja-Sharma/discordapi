@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType } from 'discord.js';
 import dotenv from 'dotenv';
 import CommandHandler from '../handlers/commandHandler.js';
 
@@ -59,7 +59,7 @@ class DiscordBotService {
             this.isReady = true;
             console.log(`Discord bot logged in as ${this.client.user.tag}!`);
             console.log(`Bot is ready and connected to ${this.client.guilds.cache.size} guilds`);
-            
+
             // Initialize command handler after bot is ready
             if (this.commandHandler) {
                 this.commandHandler.initialize();
@@ -98,6 +98,27 @@ class DiscordBotService {
                 method: rateLimitData.method,
                 path: rateLimitData.path
             });
+        });
+
+        // Interaction event - handle button clicks and other interactions
+        this.client.on(Events.InteractionCreate, async (interaction) => {
+            try {
+                if (interaction.isButton()) {
+                    await this.handleButtonInteraction(interaction);
+                } else if (interaction.isChatInputCommand()) {
+                    await this.handleSlashCommand(interaction);
+                }
+            } catch (error) {
+                console.error('Error handling interaction:', error);
+
+                const errorMessage = 'An error occurred while processing your interaction.';
+
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: errorMessage, ephemeral: true });
+                } else {
+                    await interaction.reply({ content: errorMessage, ephemeral: true });
+                }
+            }
         });
     }
 
@@ -285,12 +306,180 @@ class DiscordBotService {
     }
 
     /**
+     * Handle button interactions
+     * @param {ButtonInteraction} interaction - Discord button interaction
+     */
+    async handleButtonInteraction(interaction) {
+        const customId = interaction.customId;
+        console.log(`Button clicked: ${customId} by ${interaction.user.tag}`);
+
+        // Handle different button types
+        switch (customId) {
+            case 'confirm_action':
+                await interaction.reply({
+                    content: '✅ Action confirmed!',
+                    ephemeral: true
+                });
+                break;
+
+            case 'cancel_action':
+                await interaction.reply({
+                    content: '❌ Action cancelled.',
+                    ephemeral: true
+                });
+                break;
+
+            case 'info_button':
+                const infoEmbed = new EmbedBuilder()
+                    .setTitle('ℹ️ Information')
+                    .setDescription('This is additional information requested via button click.')
+                    .setColor(3447003)
+                    .setTimestamp();
+
+                await interaction.reply({
+                    embeds: [infoEmbed],
+                    ephemeral: true
+                });
+                break;
+
+            case 'counter_button':
+                // Get current count from button label or default to 0
+                const currentLabel = interaction.component.label;
+                const currentCount = parseInt(currentLabel.match(/\d+/)?.[0] || '0');
+                const newCount = currentCount + 1;
+
+                // Update the button with new count
+                const updatedButton = ButtonBuilder.from(interaction.component)
+                    .setLabel(`Clicked ${newCount} times`);
+
+                const updatedRow = new ActionRowBuilder()
+                    .addComponents(updatedButton);
+
+                await interaction.update({
+                    components: [updatedRow]
+                });
+                break;
+
+            default:
+                await interaction.reply({
+                    content: `Button "${customId}" clicked! (No specific handler implemented)`,
+                    ephemeral: true
+                });
+        }
+    }
+
+    /**
+     * Handle slash command interactions
+     * @param {ChatInputCommandInteraction} interaction - Discord slash command interaction
+     */
+    async handleSlashCommand(interaction) {
+        const command = this.getCommand(interaction.commandName);
+
+        if (!command || !command.execute) {
+            await interaction.reply({
+                content: 'Command not found or not implemented.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(`Error executing command ${interaction.commandName}:`, error);
+
+            const errorMessage = 'There was an error executing this command.';
+
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: errorMessage, ephemeral: true });
+            } else {
+                await interaction.reply({ content: errorMessage, ephemeral: true });
+            }
+        }
+    }
+
+    /**
+     * Create button components
+     * @param {Array} buttonConfigs - Array of button configuration objects
+     * @returns {Array} Array of ActionRowBuilder components
+     */
+    createButtons(buttonConfigs) {
+        if (!Array.isArray(buttonConfigs) || buttonConfigs.length === 0) {
+            return [];
+        }
+
+        const rows = [];
+        let currentRow = new ActionRowBuilder();
+        let buttonsInRow = 0;
+
+        for (const config of buttonConfigs) {
+            // Discord allows max 5 buttons per row
+            if (buttonsInRow >= 5) {
+                rows.push(currentRow);
+                currentRow = new ActionRowBuilder();
+                buttonsInRow = 0;
+            }
+
+            const button = new ButtonBuilder()
+                .setLabel(config.label || 'Button')
+                .setStyle(this.getButtonStyle(config.style || 'primary'));
+
+            // Handle link buttons differently - they don't need customId
+            if (config.style === 'link') {
+                if (!config.url) {
+                    throw new Error(`Link button "${config.label}" requires a URL`);
+                }
+                button.setURL(config.url);
+            } else {
+                // Non-link buttons need customId
+                button.setCustomId(config.customId || `button_${Date.now()}_${Math.random()}`);
+            }
+
+            if (config.emoji) {
+                button.setEmoji(config.emoji);
+            }
+
+            if (config.disabled) {
+                button.setDisabled(true);
+            }
+
+            currentRow.addComponents(button);
+            buttonsInRow++;
+        }
+
+        // Add the last row if it has buttons
+        if (buttonsInRow > 0) {
+            rows.push(currentRow);
+        }
+
+        return rows;
+    }
+
+    /**
+     * Get Discord button style from string
+     * @param {string} style - Style name
+     * @returns {ButtonStyle} Discord button style
+     */
+    getButtonStyle(style) {
+        const styles = {
+            'primary': ButtonStyle.Primary,
+            'secondary': ButtonStyle.Secondary,
+            'success': ButtonStyle.Success,
+            'danger': ButtonStyle.Danger,
+            'link': ButtonStyle.Link
+        };
+
+        return styles[style.toLowerCase()] || ButtonStyle.Primary;
+    }
+
+    /**
      * Send a message to a Discord channel
      * @param {string} channelId - Discord channel ID (snowflake)
      * @param {string|Object} content - Message content or message options object
      * @param {Array} embeds - Optional array of embed objects
+     * @param {Array} buttons - Optional array of button configurations
      */
-    async sendMessage(channelId, content, embeds = []) {
+    async sendMessage(channelId, content, embeds = [], buttons = []) {
         try {
             if (!this.client || !this.isReady) {
                 throw new Error('Discord bot is not ready. Call initializeBot() first.');
@@ -316,7 +505,10 @@ class DiscordBotService {
             await this.validateChannelPermissions(channel);
 
             // Prepare message options
-            const messageOptions = this.prepareMessageOptions(content, embeds);
+            const messageOptions = this.prepareMessageOptions(content, embeds, buttons);
+
+            // Log the message options for debugging
+            console.log('Sending message with options:', JSON.stringify(messageOptions, null, 2));
 
             // Send the message
             const sentMessage = await channel.send(messageOptions);
@@ -332,14 +524,22 @@ class DiscordBotService {
             };
 
         } catch (error) {
-            console.error(`Failed to send message to channel ${channelId}:`, error.message);
+            console.error(`Failed to send message to channel ${channelId}:`, error);
+            console.error('Error details:', {
+                message: error.message,
+                code: error.code,
+                status: error.status,
+                errors: error.errors,
+                stack: error.stack
+            });
 
             // Return structured error information
             const errorResponse = {
                 success: false,
                 error: {
                     code: this.getErrorCode(error),
-                    message: error.message,
+                    message: error.message || 'Unknown error occurred',
+                    details: error.errors || error.rawError || {},
                     channelId: channelId,
                     timestamp: new Date().toISOString()
                 }
@@ -381,11 +581,12 @@ class DiscordBotService {
     }
 
     /**
-     * Prepare message options object from content and embeds
+     * Prepare message options object from content, embeds, and buttons
      * @param {string|Object} content - Message content
      * @param {Array} embeds - Array of embed objects
+     * @param {Array} buttons - Array of button configurations
      */
-    prepareMessageOptions(content, embeds) {
+    prepareMessageOptions(content, embeds, buttons = []) {
         const messageOptions = {};
 
         // Handle content
@@ -411,6 +612,14 @@ class DiscordBotService {
                 }
                 return this.createEmbed(embedData);
             });
+        }
+
+        // Handle buttons/components
+        if (buttons && Array.isArray(buttons) && buttons.length > 0) {
+            const buttonRows = this.createButtons(buttons);
+            if (buttonRows.length > 0) {
+                messageOptions.components = buttonRows;
+            }
         }
 
         // Ensure at least content or embeds are provided
@@ -500,7 +709,20 @@ class DiscordBotService {
         }
 
         if (embedData.timestamp) {
-            embed.setTimestamp(embedData.timestamp);
+            // Handle different timestamp formats
+            if (embedData.timestamp === true) {
+                // Use current time
+                embed.setTimestamp();
+            } else if (typeof embedData.timestamp === 'string') {
+                // Convert string to Date object
+                embed.setTimestamp(new Date(embedData.timestamp));
+            } else if (embedData.timestamp instanceof Date) {
+                // Already a Date object
+                embed.setTimestamp(embedData.timestamp);
+            } else if (typeof embedData.timestamp === 'number') {
+                // Unix timestamp
+                embed.setTimestamp(new Date(embedData.timestamp));
+            }
         }
 
         return embed;
