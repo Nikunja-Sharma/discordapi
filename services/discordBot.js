@@ -17,6 +17,8 @@ class DiscordBotService {
      */
     async initializeBot() {
         try {
+            console.log('Starting Discord bot initialization...');
+            
             // Validate required environment variables
             if (!process.env.DISCORD_BOT_TOKEN) {
                 throw new Error('DISCORD_BOT_TOKEN is required in environment variables');
@@ -24,6 +26,8 @@ class DiscordBotService {
             if (!process.env.DISCORD_APPLICATION_ID) {
                 throw new Error('DISCORD_APPLICATION_ID is required in environment variables');
             }
+
+            console.log('Environment variables validated successfully');
 
             // Create Discord client with necessary intents
             this.client = new Client({
@@ -34,14 +38,39 @@ class DiscordBotService {
                 ]
             });
 
+            console.log('Discord client created with intents');
+
             // Set up event handlers
             this.setupEventHandlers();
+            console.log('Event handlers set up');
 
             // Initialize command handler
             this.commandHandler = new CommandHandler(this);
+            console.log('Command handler created');
 
-            // Authenticate and connect to Discord
-            await this.client.login(process.env.DISCORD_BOT_TOKEN);
+            // Create a promise that resolves when bot is ready or rejects on timeout
+            const loginPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error('Discord bot login timeout after 30 seconds'));
+                }, 30000);
+
+                this.client.once('ready', () => {
+                    clearTimeout(timeout);
+                    resolve();
+                });
+
+                this.client.once('error', (error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+
+                // Start the login process
+                this.client.login(process.env.DISCORD_BOT_TOKEN).catch(reject);
+            });
+
+            console.log('Attempting to login to Discord...');
+            await loginPromise;
+            console.log('Discord login completed successfully');
 
             return true;
         } catch (error) {
@@ -52,6 +81,17 @@ class DiscordBotService {
                 code: error.code,
                 stack: error.stack
             });
+            
+            // Clean up client if it exists
+            if (this.client) {
+                try {
+                    this.client.destroy();
+                } catch (destroyError) {
+                    console.error('Error destroying client:', destroyError);
+                }
+                this.client = null;
+            }
+            
             throw error;
         }
     }

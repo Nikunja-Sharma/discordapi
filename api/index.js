@@ -42,7 +42,14 @@ connectToMongoDB();
 async function initializeDiscordBot() {
 	try {
 		console.log('Initializing Discord bot...');
-		await discordBotService.initializeBot();
+		
+		// Add timeout wrapper to prevent hanging
+		const initPromise = discordBotService.initializeBot();
+		const timeoutPromise = new Promise((_, reject) => {
+			setTimeout(() => reject(new Error('Discord bot initialization timeout after 45 seconds')), 45000);
+		});
+		
+		await Promise.race([initPromise, timeoutPromise]);
 		console.log('Discord bot initialized successfully');
 	} catch (error) {
 		console.error('Failed to initialize Discord bot:', error.message);
@@ -51,6 +58,27 @@ async function initializeDiscordBot() {
 		console.error('- DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN ? 'SET' : 'MISSING');
 		console.error('- DISCORD_APPLICATION_ID:', process.env.DISCORD_APPLICATION_ID ? 'SET' : 'MISSING');
 		console.error('- DISCORD_DEFAULT_GUILD_ID:', process.env.DISCORD_DEFAULT_GUILD_ID ? 'SET' : 'MISSING');
+		
+		// Additional debugging for Render
+		if (process.env.NODE_ENV === 'production') {
+			console.error('Production environment detected - checking network connectivity...');
+			console.error('Process environment keys:', Object.keys(process.env).filter(key => key.includes('DISCORD')));
+			
+			// Test Discord API connectivity
+			try {
+				const https = await import('https');
+				const testReq = https.request('https://discord.com/api/v10/gateway', { method: 'GET' }, (res) => {
+					console.log('Discord API connectivity test - Status:', res.statusCode);
+				});
+				testReq.on('error', (err) => {
+					console.error('Discord API connectivity test failed:', err.message);
+				});
+				testReq.end();
+			} catch (netError) {
+				console.error('Network test error:', netError.message);
+			}
+		}
+		
 		// Don't exit the process - allow the web server to continue running
 		console.log('Web server will continue without Discord functionality');
 	}
