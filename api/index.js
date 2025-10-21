@@ -5,6 +5,9 @@ import bodyParser from 'body-parser';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from '../routes/authRoutes.js';
+import discordRoutes from '../routes/discordRoutes.js';
+import discordBotService from '../services/discordBot.js';
+import { discordErrorHandler, discordRateLimit } from '../middleware/discordErrorHandler.js';
 
 dotenv.config();
 
@@ -23,8 +26,25 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/auth_db')
 	.then(() => console.log('Connected to MongoDB'))
 	.catch((err) => console.error('MongoDB connection error:', err));
 
+// Initialize Discord Bot
+async function initializeDiscordBot() {
+	try {
+		console.log('Initializing Discord bot...');
+		await discordBotService.initializeBot();
+		console.log('Discord bot initialized successfully');
+	} catch (error) {
+		console.error('Failed to initialize Discord bot:', error.message);
+		// Don't exit the process - allow the web server to continue running
+		console.log('Web server will continue without Discord functionality');
+	}
+}
+
+// Start Discord bot initialization (non-blocking)
+initializeDiscordBot();
+
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/discord', discordRateLimit(60000, 30), discordRoutes);
 
 // Dummy data to store users
 let users = [
@@ -134,8 +154,64 @@ app.get('/allUsers', (req, res) => {
 	}
 });
 
+// Discord-specific error handling middleware (must be after Discord routes)
+app.use('/api/discord', discordErrorHandler);
+
+// General error handling middleware
+app.use((err, req, res, next) => {
+	console.error('Unhandled error:', err);
+	
+	if (res.headersSent) {
+		return next(err);
+	}
+	
+	res.status(500).json({
+		success: false,
+		error: {
+			code: 'INTERNAL_ERROR',
+			message: 'An unexpected error occurred',
+			timestamp: new Date().toISOString()
+		}
+	});
+});
+
+// Graceful shutdown handling
+process.on('SIGINT', async () => {
+	console.log('\nReceived SIGINT. Graceful shutdown...');
+	await gracefulShutdown();
+});
+
+process.on('SIGTERM', async () => {
+	console.log('\nReceived SIGTERM. Graceful shutdown...');
+	await gracefulShutdown();
+});
+
+async function gracefulShutdown() {
+	try {
+		console.log('Shutting down services...');
+		
+		// Shutdown Discord bot
+		await discordBotService.shutdown();
+		
+		// Close MongoDB connection
+		await mongoose.connection.close();
+		console.log('MongoDB connection closed');
+		
+		console.log('Graceful shutdown complete');
+		process.exit(0);
+	} catch (error) {
+		console.error('Error during graceful shutdown:', error);
+		process.exit(1);
+	}
+}
+
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Handle server shutdown
+server.on('close', () => {
+	console.log('HTTP server closed');
+});
 
 export default app;

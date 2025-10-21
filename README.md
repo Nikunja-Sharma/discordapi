@@ -1,10 +1,75 @@
-# Express.js on Vercel
+# Discord Bot Backend API
 
-Simple Express.js + Vercel example that uses Vercel Postgres to add and display users in a table.
+Express.js backend service for Discord bot integration with authentication and message sending capabilities.
 
-## How to Use
+## Features
 
-BE sure to create a Vercel Postgres database and add you environment variables to your `.env` file. You can find an example of the `.env` file in the `.env.example` file.
+- JWT-based authentication
+- Discord bot integration
+- Secure message sending to predefined channels
+- Guild and channel management
+- MongoDB integration
+
+## Environment Setup
+
+Create a `.env` file based on `.env.example` and configure:
+
+- `DISCORD_BOT_TOKEN`: Your Discord bot token
+- `DISCORD_APPLICATION_ID`: Your Discord application ID  
+- `DISCORD_DEFAULT_GUILD_ID`: Default server/guild ID
+- `DISCORD_DEFAULT_CHANNEL_ID`: Default channel ID for messages
+- `JWT_SECRET`: Secret key for JWT tokens
+- `MONGODB_URI`: MongoDB connection string
+
+## API Endpoints
+
+### Authentication Required
+All Discord endpoints require a valid JWT token in the Authorization header:
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+### Discord Endpoints
+
+#### Send Message
+```
+POST /api/discord/send
+```
+Sends a message to the predefined default channel.
+
+**Request Body:**
+```json
+{
+  "content": "Your message text (optional if embeds provided)",
+  "embeds": [
+    {
+      "title": "Embed Title",
+      "description": "Embed description",
+      "color": 0x00ff00
+    }
+  ]
+}
+```
+
+**Note:** Channel is automatically set to the configured default channel. Users cannot specify custom channels.
+
+#### Get Default Channel Info
+```
+GET /api/discord/default-channel
+```
+Returns information about the configured default channel.
+
+#### Get Guilds
+```
+GET /api/discord/guilds
+```
+Returns list of guilds/servers the bot is connected to.
+
+#### Get Channels
+```
+GET /api/discord/channels/:guildId
+```
+Returns list of channels in a specific guild.
 
 You can choose from one of the following two methods to use this repository:
 
