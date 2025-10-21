@@ -46,6 +46,12 @@ class DiscordBotService {
             return true;
         } catch (error) {
             console.error('Failed to initialize Discord bot:', error.message);
+            console.error('Discord initialization error details:', {
+                name: error.name,
+                message: error.message,
+                code: error.code,
+                stack: error.stack
+            });
             throw error;
         }
     }

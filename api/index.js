@@ -46,6 +46,11 @@ async function initializeDiscordBot() {
 		console.log('Discord bot initialized successfully');
 	} catch (error) {
 		console.error('Failed to initialize Discord bot:', error.message);
+		console.error('Discord bot error details:', error);
+		console.error('Environment check:');
+		console.error('- DISCORD_BOT_TOKEN:', process.env.DISCORD_BOT_TOKEN ? 'SET' : 'MISSING');
+		console.error('- DISCORD_APPLICATION_ID:', process.env.DISCORD_APPLICATION_ID ? 'SET' : 'MISSING');
+		console.error('- DISCORD_DEFAULT_GUILD_ID:', process.env.DISCORD_DEFAULT_GUILD_ID ? 'SET' : 'MISSING');
 		// Don't exit the process - allow the web server to continue running
 		console.log('Web server will continue without Discord functionality');
 	}
