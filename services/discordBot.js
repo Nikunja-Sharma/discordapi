@@ -206,12 +206,17 @@ class DiscordBotService {
             } catch (error) {
                 console.error('Error handling interaction:', error);
 
-                const errorMessage = 'An error occurred while processing your interaction.';
+                // Only respond if we haven't already responded
+                try {
+                    const errorMessage = 'An error occurred while processing your interaction.';
 
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp({ content: errorMessage, ephemeral: true });
-                } else {
-                    await interaction.reply({ content: errorMessage, ephemeral: true });
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp({ content: errorMessage, flags: 64 }); // ephemeral flag
+                    } else {
+                        await interaction.reply({ content: errorMessage, flags: 64 }); // ephemeral flag
+                    }
+                } catch (responseError) {
+                    console.error('Failed to send error response:', responseError);
                 }
             }
         });
@@ -468,27 +473,42 @@ class DiscordBotService {
      * @param {ChatInputCommandInteraction} interaction - Discord slash command interaction
      */
     async handleSlashCommand(interaction) {
-        const command = this.getCommand(interaction.commandName);
+        // First check if command handler has the command
+        let command = null;
+        if (this.commandHandler) {
+            command = this.commandHandler.getCommand(interaction.commandName);
+        }
+        
+        // Fallback to bot service commands
+        if (!command) {
+            command = this.getCommand(interaction.commandName);
+        }
 
         if (!command || !command.execute) {
+            console.warn(`Unknown command: ${interaction.commandName}`);
             await interaction.reply({
                 content: 'Command not found or not implemented.',
-                ephemeral: true
+                flags: 64 // ephemeral
             });
             return;
         }
 
         try {
+            console.log(`Executing command: ${interaction.commandName} by ${interaction.user.tag}`);
             await command.execute(interaction);
         } catch (error) {
             console.error(`Error executing command ${interaction.commandName}:`, error);
 
             const errorMessage = 'There was an error executing this command.';
 
-            if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: errorMessage, ephemeral: true });
-            } else {
-                await interaction.reply({ content: errorMessage, ephemeral: true });
+            try {
+                if (interaction.replied || interaction.deferred) {
+                    await interaction.followUp({ content: errorMessage, flags: 64 });
+                } else {
+                    await interaction.reply({ content: errorMessage, flags: 64 });
+                }
+            } catch (responseError) {
+                console.error('Failed to send command error response:', responseError);
             }
         }
     }

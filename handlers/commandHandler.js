@@ -16,10 +16,9 @@ class CommandHandler {
             throw new Error('Discord client not available. Initialize bot first.');
         }
 
-        // Set up interaction event handler
-        client.on(Events.InteractionCreate, async (interaction) => {
-            await this.handleInteraction(interaction);
-        });
+        // Note: We don't add another interaction listener here since 
+        // the main bot service already handles interactions
+        // This prevents duplicate handling
 
         console.log('Command handler initialized');
     }

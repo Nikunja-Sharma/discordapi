@@ -8,6 +8,7 @@ import authRoutes from '../routes/authRoutes.js';
 import discordRoutes from '../routes/discordRoutes.js';
 import discordBotService from '../services/discordBot.js';
 import { discordErrorHandler, discordRateLimit } from '../middleware/discordErrorHandler.js';
+import commands from '../commands/index.js';
 
 dotenv.config();
 
@@ -51,6 +52,22 @@ async function initializeDiscordBot() {
 		
 		await Promise.race([initPromise, timeoutPromise]);
 		console.log('Discord bot initialized successfully');
+		
+		// Register commands after successful initialization
+		try {
+			console.log('Registering Discord commands...');
+			await discordBotService.registerSlashCommands(commands, process.env.DISCORD_DEFAULT_GUILD_ID);
+			
+			// Also register commands with the command handler
+			const commandHandler = discordBotService.getCommandHandler();
+			if (commandHandler) {
+				commandHandler.registerCommands(commands);
+			}
+			
+			console.log('Discord commands registered successfully');
+		} catch (commandError) {
+			console.error('Failed to register Discord commands:', commandError.message);
+		}
 	} catch (error) {
 		console.error('Failed to initialize Discord bot:', error.message);
 		console.error('Discord bot error details:', error);
