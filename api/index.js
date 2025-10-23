@@ -2,10 +2,16 @@ import dotenv from 'dotenv';
 import express from 'express';
 import mongoose from 'mongoose';
 import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
+import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from '../routes/authRoutes.js';
 import discordRoutes from '../routes/discordRoutes.js';
+import subscriptionRoutes from '../routes/subscriptionRoutes.js';
+import apiKeyRoutes from '../routes/apiKeyRoutes.js';
+import botConfigRoutes from '../routes/botConfigRoutes.js';
+import usageRoutes from '../routes/usageRoutes.js';
 import discordBotService from '../services/discordBot.js';
 import { discordErrorHandler, discordRateLimit } from '../middleware/discordErrorHandler.js';
 import commands from '../commands/index.js';
@@ -19,25 +25,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Middleware
+app.use(cors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    credentials: true
+}));
+app.use(cookieParser());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// MongoDB Connection
-const connectToMongoDB = async () => {
+// MongoDB Connection with enhanced utilities
+import { connectToDatabase, createIndexes } from '../utils/database.js';
+
+const initializeDatabase = async () => {
 	try {
-		if (!process.env.MONGODB_URI) {
-			throw new Error('MONGODB_URI environment variable is not defined');
-		}
+		await connectToDatabase();
 		
-		await mongoose.connect(process.env.MONGODB_URI);
-		console.log('Connected to MongoDB');
+		// Create database indexes for performance optimization
+		await createIndexes();
+		
+		console.log('Database initialization completed successfully');
 	} catch (err) {
-		console.error('MongoDB connection error:', err.message);
+		console.error('Database initialization error:', err.message);
 		console.log('Server will continue without database functionality');
 	}
 };
 
-connectToMongoDB();
+initializeDatabase();
 
 // Initialize Discord Bot
 async function initializeDiscordBot() {
@@ -137,6 +150,10 @@ initializeDiscordBot();
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/discord', discordRateLimit(60000, 30), discordRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
+app.use('/api/apikeys', apiKeyRoutes);
+app.use('/api/bots', botConfigRoutes);
+app.use('/api/usage', usageRoutes);
 
 // Dummy data to store users
 let users = [
